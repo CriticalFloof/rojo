@@ -74,6 +74,8 @@ pub fn snapshot_dir_no_meta(
         path.join("init.client.lua"),
         path.join("init.client.luau"),
         path.join("init.csv"),
+        path.join("init.rbxm"),
+        path.join("init.rbxmx"),
     ];
 
     let snapshot = InstanceSnapshot::new()

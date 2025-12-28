@@ -45,8 +45,8 @@ use self::{
     json_model::{snapshot_json_model, syncback_json_model},
     lua::{snapshot_lua, snapshot_lua_init, syncback_lua, syncback_lua_init},
     project::{snapshot_project, syncback_project},
-    rbxm::{snapshot_rbxm, syncback_rbxm},
-    rbxmx::{snapshot_rbxmx, syncback_rbxmx},
+    rbxm::{snapshot_rbxm, snapshot_rbxm_init, syncback_rbxm, syncback_rbxm_init},
+    rbxmx::{snapshot_rbxmx, snapshot_rbxmx_init, syncback_rbxmx, syncback_rbxmx_init},
     toml::snapshot_toml,
     txt::{snapshot_txt, syncback_txt},
     yaml::snapshot_yaml,
@@ -72,6 +72,8 @@ pub fn snapshot_from_vfs(
         None => return Ok(None),
     };
 
+    println!("buhh {}", meta.is_dir());
+
     if meta.is_dir() {
         let (middleware, dir_name, init_path) = get_dir_middleware(vfs, path)?;
         // TODO: Support user defined init paths
@@ -91,7 +93,7 @@ pub fn snapshot_from_vfs(
         // TODO: Is this even necessary anymore?
         match file_name {
             "init.server.luau" | "init.server.lua" | "init.client.luau" | "init.client.lua"
-            | "init.luau" | "init.lua" | "init.csv" => return Ok(None),
+            | "init.luau" | "init.lua" | "init.csv" | "init.rbxm" | "init.rbxmx" => return Ok(None),
             _ => {}
         }
 
@@ -125,6 +127,8 @@ fn get_dir_middleware<'path>(
             (Middleware::ClientScriptDir, "init.client.luau"),
             (Middleware::ClientScriptDir, "init.client.lua"),
             (Middleware::CsvDir, "init.csv"),
+            (Middleware::RbxmDir, "init.rbxm"),
+            (Middleware::RbxmxDir, "init.rbxmx")
         ]
     });
 
@@ -208,6 +212,12 @@ pub enum Middleware {
     ModuleScriptDir,
     #[serde(skip_deserializing)]
     CsvDir,
+    #[serde(skip_deserializing)]
+    RbxmDir,
+    #[serde(skip_deserializing)]
+    RbxmxDir,
+
+
 }
 
 impl Middleware {
@@ -259,6 +269,8 @@ impl Middleware {
                 snapshot_lua_init(context, vfs, path, name, ScriptType::Module)
             }
             Self::CsvDir => snapshot_csv_init(context, vfs, path, name),
+            Self::RbxmDir => snapshot_rbxm_init(context, vfs, path, name),
+            Self::RbxmxDir => snapshot_rbxmx_init(context, vfs, path, name)
         };
         if let Ok(Some(ref mut snapshot)) = output {
             snapshot.metadata.middleware = Some(*self);
@@ -299,6 +311,8 @@ impl Middleware {
             Middleware::ClientScriptDir => syncback_lua_init(ScriptType::Client, snapshot),
             Middleware::ModuleScriptDir => syncback_lua_init(ScriptType::Module, snapshot),
             Middleware::CsvDir => syncback_csv_init(snapshot),
+            Middleware::RbxmDir => syncback_rbxm_init(snapshot),
+            Middleware::RbxmxDir => syncback_rbxmx_init(snapshot),
 
             Middleware::PluginScript
             | Middleware::LegacyServerScript

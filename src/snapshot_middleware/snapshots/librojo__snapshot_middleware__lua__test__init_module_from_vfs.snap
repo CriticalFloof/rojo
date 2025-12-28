@@ -1,5 +1,6 @@
 ---
 source: src/snapshot_middleware/lua.rs
+assertion_line: 416
 expression: instance_snapshot
 ---
 snapshot_id: "00000000000000000000000000000000"
@@ -16,6 +17,8 @@ metadata:
     - /root/init.client.lua
     - /root/init.client.luau
     - /root/init.csv
+    - /root/init.rbxm
+    - /root/init.rbxmx
     - /root/init.meta.json
     - /root/init.meta.jsonc
   context:

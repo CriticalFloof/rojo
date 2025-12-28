@@ -9,6 +9,11 @@ use crate::{
     syncback::{FsSnapshot, SyncbackReturn, SyncbackSnapshot},
 };
 
+use super::{
+    dir::{snapshot_dir_no_meta, syncback_dir_no_meta},
+    meta_file::{DirectoryMetadata}
+};
+
 pub fn snapshot_rbxmx(
     context: &InstanceContext,
     vfs: &Vfs,
@@ -45,6 +50,45 @@ pub fn snapshot_rbxmx(
     }
 }
 
+pub fn snapshot_rbxmx_init(
+    context: &InstanceContext,
+    vfs: &Vfs,
+    init_path: &Path,
+    name: &str,
+) -> anyhow::Result<Option<InstanceSnapshot>> {
+    let folder_path = init_path.parent().unwrap();
+    let dir_snapshot = snapshot_dir_no_meta(context, vfs, folder_path, name)?.unwrap();
+
+    if dir_snapshot.class_name != "Folder" {
+        anyhow::bail!(
+            "init.rbxmx can only be used if the instance produced by \
+             the containing directory would be a Folder.\n\
+             \n\
+             The directory {} turned into an instance of class {}.",
+            folder_path.display(),
+            dir_snapshot.class_name
+        );
+    }
+
+    let mut init_snapshot =
+        snapshot_rbxmx(context, vfs, init_path, &dir_snapshot.name)?.unwrap();
+
+    println!("INIT RESULT!!1 {}", init_snapshot.snapshot_id);
+
+    init_snapshot.children = dir_snapshot.children;
+    init_snapshot.metadata = dir_snapshot.metadata;
+    // The directory snapshot middleware includes all possible init paths
+    // so we don't need to add it here.
+
+    println!("INIT RESULT!!2 {}", init_snapshot.snapshot_id);
+
+    DirectoryMetadata::read_and_apply_all(vfs, folder_path, &mut init_snapshot)?;
+
+    println!("INIT RESULT!!3 {}", init_snapshot.snapshot_id);
+
+    Ok(Some(init_snapshot))
+}
+
 pub fn syncback_rbxmx<'sync>(
     snapshot: &SyncbackSnapshot<'sync>,
 ) -> anyhow::Result<SyncbackReturn<'sync>> {
@@ -71,11 +115,45 @@ pub fn syncback_rbxmx<'sync>(
     })
 }
 
+pub fn syncback_rbxmx_init<'sync>(
+    snapshot: &SyncbackSnapshot<'sync>,
+) -> anyhow::Result<SyncbackReturn<'sync>> {
+    let new_inst = snapshot.new_inst();
+
+    let mut serialized = Vec::new();
+    rbx_binary::to_writer(&mut serialized, snapshot.new_tree(), &[new_inst.referent()])
+        .context("failed to serialize new rbxm")?;
+
+    let mut dir_syncback = syncback_dir_no_meta(snapshot)?;
+    dir_syncback.fs_snapshot.add_file(
+        snapshot.path.join("init.rbxmx"),
+        serialized,
+    );
+    /* 
+    let meta = DirectoryMetadata::from_syncback_snapshot(snapshot, snapshot.path.clone())?;
+    if let Some(mut meta) = meta {
+        // LocalizationTables have relatively few properties that we care
+        // about, so shifting is fine.
+        meta.properties.shift_remove(&ustr("Contents"));
+        if !meta.is_empty() {
+            dir_syncback.fs_snapshot.add_file(
+                snapshot.path.join("init.meta.json"),
+                serde_json::to_vec_pretty(&meta)
+                    .context("could not serialize new init.meta.json")?,
+            );
+        }
+    }
+    */
+
+    Ok(dir_syncback)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     use memofs::{InMemoryFs, VfsSnapshot};
+    use rbx_dom_weak::types::Ref;
 
     #[test]
     fn plain_folder() {
@@ -111,5 +189,44 @@ mod test {
         assert_eq!(instance_snapshot.class_name, "Folder");
         assert_eq!(instance_snapshot.properties, Default::default());
         assert_eq!(instance_snapshot.children, Vec::new());
+    }
+
+    #[test]
+    fn xml_model_init() {
+        let mut imfs = InMemoryFs::new();
+
+        imfs.load_snapshot(
+            "/root",
+            VfsSnapshot::dir([(
+                "init.rbxmx",
+                VfsSnapshot::file(
+                r#"
+                    <roblox version="4">
+                        <Item class="Model" referent="0">
+                            <Properties>
+                                <string name="Source">THIS IS TEST</string>
+                            </Properties>
+                        </Item>
+                    </roblox>
+                "#,
+                ),
+            )])
+        )
+        .unwrap();
+
+        let vfs = Vfs::new(imfs);
+
+        let instance_snapshot = snapshot_rbxmx_init(
+            &InstanceContext::default(),
+            &vfs,
+            Path::new("/root/init.rbxmx"),
+            "root",
+        ).unwrap().unwrap().snapshot_id(Ref::none());
+
+        println!("FINAL RESULT!! {}", instance_snapshot.class_name);
+
+        insta::with_settings!({ sort_maps => true }, {
+            insta::assert_yaml_snapshot!(instance_snapshot);
+        });
     }
 }

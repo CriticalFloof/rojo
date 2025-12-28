@@ -8,6 +8,11 @@ use crate::{
     syncback::{FsSnapshot, SyncbackReturn, SyncbackSnapshot},
 };
 
+use super::{
+    dir::{snapshot_dir_no_meta, syncback_dir_no_meta},
+    meta_file::{DirectoryMetadata}
+};
+
 #[profiling::function]
 pub fn snapshot_rbxm(
     context: &InstanceContext,
@@ -42,15 +47,48 @@ pub fn snapshot_rbxm(
     }
 }
 
+pub fn snapshot_rbxm_init(
+    context: &InstanceContext,
+    vfs: &Vfs,
+    init_path: &Path,
+    name: &str,
+) -> anyhow::Result<Option<InstanceSnapshot>> {
+    let folder_path = init_path.parent().unwrap();
+    let dir_snapshot = snapshot_dir_no_meta(context, vfs, folder_path, name)?.unwrap();
+
+    if dir_snapshot.class_name != "Folder" {
+        anyhow::bail!(
+            "init.rbxm can only be used if the instance produced by \
+             the containing directory would be a Folder.\n\
+             \n\
+             The directory {} turned into an instance of class {}.",
+            folder_path.display(),
+            dir_snapshot.class_name
+        );
+    }
+
+    let mut init_snapshot =
+        snapshot_rbxm(context, vfs, init_path, &dir_snapshot.name)?.unwrap();
+
+    init_snapshot.children = dir_snapshot.children;
+    init_snapshot.metadata = dir_snapshot.metadata;
+    // The directory snapshot middleware includes all possible init paths
+    // so we don't need to add it here.
+
+    DirectoryMetadata::read_and_apply_all(vfs, folder_path, &mut init_snapshot)?;
+
+    Ok(Some(init_snapshot))
+}
+
 pub fn syncback_rbxm<'sync>(
     snapshot: &SyncbackSnapshot<'sync>,
 ) -> anyhow::Result<SyncbackReturn<'sync>> {
-    let inst = snapshot.new_inst();
+    let new_inst = snapshot.new_inst();
 
     // Long-term, we probably want to have some logic for if this contains a
     // script. That's a future endeavor though.
     let mut serialized = Vec::new();
-    rbx_binary::to_writer(&mut serialized, snapshot.new_tree(), &[inst.referent()])
+    rbx_binary::to_writer(&mut serialized, snapshot.new_tree(), &[new_inst.referent()])
         .context("failed to serialize new rbxm")?;
 
     Ok(SyncbackReturn {
@@ -58,6 +96,39 @@ pub fn syncback_rbxm<'sync>(
         children: Vec::new(),
         removed_children: Vec::new(),
     })
+}
+
+pub fn syncback_rbxm_init<'sync>(
+    snapshot: &SyncbackSnapshot<'sync>,
+) -> anyhow::Result<SyncbackReturn<'sync>> {
+    let new_inst = snapshot.new_inst();
+
+    let mut serialized = Vec::new();
+    rbx_binary::to_writer(&mut serialized, snapshot.new_tree(), &[new_inst.referent()])
+        .context("failed to serialize new rbxm")?;
+
+    let mut dir_syncback = syncback_dir_no_meta(snapshot)?;
+    dir_syncback.fs_snapshot.add_file(
+        snapshot.path.join("init.rbxm"),
+        serialized,
+    );
+    /* 
+    let meta = DirectoryMetadata::from_syncback_snapshot(snapshot, snapshot.path.clone())?;
+    if let Some(mut meta) = meta {
+        // LocalizationTables have relatively few properties that we care
+        // about, so shifting is fine.
+        meta.properties.shift_remove(&ustr("Contents"));
+        if !meta.is_empty() {
+            dir_syncback.fs_snapshot.add_file(
+                snapshot.path.join("init.meta.json"),
+                serde_json::to_vec_pretty(&meta)
+                    .context("could not serialize new init.meta.json")?,
+            );
+        }
+    }
+    */
+
+    Ok(dir_syncback)
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 ---
-source: src/snapshot_middleware/lua.rs
+source: src/snapshot_middleware/rbxmx.rs
 expression: instance_snapshot
 ---
 snapshot_id: "00000000000000000000000000000000"
@@ -22,12 +22,12 @@ metadata:
     - /root/init.meta.jsonc
   context:
     emit_legacy_scripts: true
-  specified_id: manually specified
+  specified_id: ~
   middleware: ~
   schema: ~
 name: root
-class_name: ModuleScript
+class_name: Model
 properties:
   Source:
-    String: Hello!
+    String: THIS IS TEST
 children: []

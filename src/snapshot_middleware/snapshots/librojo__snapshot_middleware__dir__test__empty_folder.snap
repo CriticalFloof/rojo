@@ -16,6 +16,8 @@ metadata:
     - /foo/init.client.lua
     - /foo/init.client.luau
     - /foo/init.csv
+    - /foo/init.rbxm
+    - /foo/init.rbxmx
     - /foo/init.meta.json
     - /foo/init.meta.jsonc
   context:

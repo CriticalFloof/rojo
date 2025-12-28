@@ -78,7 +78,9 @@ pub fn extension_for_middleware(middleware: Middleware) -> &'static str {
         | Middleware::CsvDir
         | Middleware::ServerScriptDir
         | Middleware::ClientScriptDir
-        | Middleware::ModuleScriptDir => {
+        | Middleware::ModuleScriptDir
+        | Middleware::RbxmDir
+        | Middleware::RbxmxDir => {
             unimplemented!("directory middleware requires special treatment")
         }
     }
