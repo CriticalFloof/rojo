@@ -55,13 +55,13 @@ Run the command and try building again: `git submodule update --init --recursive
 The Rojo release process is pretty manual right now. If you need to do it, here's how:
 
 1. Bump server version in [`Cargo.toml`](Cargo.toml)
-2. Bump plugin version in [`plugin/src/Config.lua`](plugin/src/Config.lua)
+2. Bump plugin version in [`plugin/Version.txt`](plugin/Version.txt)
 3. Run `cargo test` to update `Cargo.lock` and run tests
 4. Update [`CHANGELOG.md`](CHANGELOG.md)
 5. Commit!
-    * `git add . && git commit -m "Release vX.Y.Z"`
+    * `git add . && git commit -m "Release vX.Y.Z+bp"`
 6. Tag the commit
-    * `git tag vX.Y.Z`
+    * `git tag vX.Y.Z+bp`
 7. Publish the CLI
     * `cargo publish`
 8. Publish the Plugin

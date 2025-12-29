@@ -1,17 +1,17 @@
 [package]
-name = "rojo"
-version = "7.7.0-rc.1"
+name = "bp-rojo"
+version = "0.0.0"
 rust-version = "1.88"
 authors = [
     "Lucien Greathouse <me@lpghatguy.com>",
     "Micah Reid <git@dekkonot.com>",
     "Ken Loeffler <kenloef@gmail.com>",
 ]
-description = "Enables professional-grade development tools for Roblox developers"
+description = "Forked from the Rojo Project: Enables professional-grade development tools for Roblox developers"
 license = "MPL-2.0"
 homepage = "https://rojo.space"
 documentation = "https://rojo.space/docs"
-repository = "https://github.com/rojo-rbx/rojo"
+repository = "https://github.com/CriticalFloof/rojo"
 readme = "README.md"
 edition = "2021"
 build = "build.rs"
