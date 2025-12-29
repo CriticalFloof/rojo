@@ -127,18 +127,12 @@ pub fn snapshot_lua_init(
     let mut init_snapshot =
         snapshot_lua(context, vfs, init_path, &dir_snapshot.name, script_type)?.unwrap();
 
-    println!("INIT RESULT!!1 {}", init_snapshot.snapshot_id);
-
     init_snapshot.children = dir_snapshot.children;
     init_snapshot.metadata = dir_snapshot.metadata;
     // The directory snapshot middleware includes all possible init paths
     // so we don't need to add it here.
 
-    println!("INIT RESULT!!2 {}", init_snapshot.snapshot_id);
-
     DirectoryMetadata::read_and_apply_all(vfs, folder_path, &mut init_snapshot)?;
-
-    println!("INIT RESULT!!3 {}", init_snapshot.snapshot_id);
 
     Ok(Some(init_snapshot))
 }
@@ -405,8 +399,6 @@ mod test {
         )
         .unwrap()
         .unwrap();
-
-        println!("FINAL RESULT!! {}", instance_snapshot.class_name);
 
         insta::with_settings!({ sort_maps => true }, {
             insta::assert_yaml_snapshot!(instance_snapshot);

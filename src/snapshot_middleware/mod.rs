@@ -72,8 +72,6 @@ pub fn snapshot_from_vfs(
         None => return Ok(None),
     };
 
-    println!("buhh {}", meta.is_dir());
-
     if meta.is_dir() {
         let (middleware, dir_name, init_path) = get_dir_middleware(vfs, path)?;
         // TODO: Support user defined init paths
